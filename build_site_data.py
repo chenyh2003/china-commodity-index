@@ -39,13 +39,22 @@ def clean_num(v, digits=3):
     return round(float(v), digits)
 
 
-def make_series(s, key, name, group, color, dash="solid", visible=True):
+def make_series(s, key, name, group, color, dash="solid", visible=True, step=1):
     s = s.dropna(subset=["level"]).sort_values("date")
-    y = [clean_num(v) for v in s["level"].tolist()]
-    x = s["date"].dt.strftime("%Y-%m-%d").tolist()
-    latest = y[-1] if y else None
-    chg1d = (y[-1] / y[-2] - 1) if len(y) >= 2 else None
-    chg1y = (y[-1] / y[-253] - 1) if len(y) >= 253 else None
+    full = [clean_num(v) for v in s["level"].tolist()]
+    latest = full[-1] if full else None
+    chg1d = (full[-1] / full[-2] - 1) if len(full) >= 2 else None
+    chg1dAbs = (full[-1] - full[-2]) if len(full) >= 2 else None
+    chg1y = (full[-1] / full[-253] - 1) if len(full) >= 253 else None
+
+    if step > 1 and len(s) > step:
+        sampled = s.iloc[::step]
+        if sampled.index[-1] != s.index[-1]:
+            sampled = pd.concat([sampled, s.iloc[[-1]]])
+    else:
+        sampled = s
+    y = [clean_num(v) for v in sampled["level"].tolist()]
+    x = sampled["date"].dt.strftime("%Y-%m-%d").tolist()
     return {
         "key": key,
         "name": name,
@@ -56,20 +65,21 @@ def make_series(s, key, name, group, color, dash="solid", visible=True):
         "x": x,
         "y": y,
         "latest": latest,
-        "latestDate": x[-1] if x else None,
+        "latestDate": s["date"].iloc[-1].strftime("%Y-%m-%d") if len(s) else None,
         "chg1d": chg1d,
+        "chg1dAbs": chg1dAbs,
         "chg1y": chg1y,
     }
 
 
-def subindex_dataset(path, index_map):
+def subindex_dataset(path, index_map, step=5):
     df = pd.read_csv(path, parse_dates=["date"])
     series = []
     for cat, g in df.groupby("category", sort=False):
         name = g["category_name"].iloc[0]
         idx = g["index"].iloc[0]
         group = index_map.get(idx, idx)
-        series.append(make_series(g, cat, name, group, CATEGORY_COLORS.get(cat, "#777")))
+        series.append(make_series(g, cat, name, group, CATEGORY_COLORS.get(cat, "#777"), step=step))
     order = ["oils", "hogs", "eggs", "sugar", "cotton", "apple", "jujube",
              "metals", "rubber", "crude", "iron_coal", "gold"]
     series.sort(key=lambda s: order.index(s["key"]) if s["key"] in order else 99)
@@ -81,7 +91,7 @@ def ratio_series(df, ind_key, cons_key, key, name, color, dash, visible):
     b = df[df["index"] == cons_key][["date", "level"]].rename(columns={"level": "cons"})
     m = a.merge(b, on="date", how="inner").sort_values("date")
     m["level"] = m["ind"] / m["cons"]
-    return make_series(m, key, name, "ratio", color, dash, visible)
+    return make_series(m, key, name, "ratio", color, dash, visible, step=3)
 
 
 def big_dataset():
@@ -93,7 +103,7 @@ def big_dataset():
         g = df[df["index"] == key]
         if len(g) == 0:
             continue
-        series.append(make_series(g, key, name, "big", color, dash, visible))
+        series.append(make_series(g, key, name, "big", color, dash, visible, step=3))
     ratio = [
         ratio_series(main, "industrial_all_price", "consumption_price",
                      "ratio_main", "工业 / 消费（2020 起）", "#6a4c93", "solid", True),
@@ -110,13 +120,13 @@ def big_dataset():
 def main():
     os.makedirs(SITE, exist_ok=True)
     contract = subindex_dataset(os.path.join(OUT, "subindex_levels.csv"),
-                                {"consumption": "consumption", "industrial": "industrial"})
+                                {"consumption": "consumption", "industrial": "industrial"}, step=5)
     proxy = subindex_dataset(os.path.join(OUT, "subindex_levels_proxy.csv"),
-                             {"consumption_proxy": "consumption", "industrial_proxy": "industrial"})
+                             {"consumption_proxy": "consumption", "industrial_proxy": "industrial"}, step=10)
     big, ratio = big_dataset()
     hs = pd.read_csv(os.path.join(BASE, "data", "hs300.csv"), parse_dates=["date"])
     hs["level"] = hs["close"]
-    hs300 = make_series(hs, "hs300", "沪深300", "hs300", "#c0392b", "solid", True)
+    hs300 = make_series(hs, "hs300", "沪深300", "hs300", "#c0392b", "solid", True, step=3)
     data = {
         "generatedAt": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"),
         "big": big,
