@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中国商品指数看板</title>
+<style>
+  :root {
+    --bg: #f3f6fa;
+    --panel: #ffffff;
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --line: #e5eaf1;
+    --accent: #2f6f9f;
+    --up: #c0392b;
+    --down: #1e8449;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+  }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 28px 24px 48px; }
+  header { margin-bottom: 22px; }
+  h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: 0.5px; }
+  .sub { color: var(--muted); font-size: 13px; line-height: 1.7; }
+  .section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(31, 41, 55, 0.05);
+    padding: 20px 22px 18px;
+    margin-bottom: 22px;
+  }
+  .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  h2 { margin: 0; font-size: 19px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .card {
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  }
+  .card .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .card .value { font-size: 30px; font-weight: 700; letter-spacing: 0.3px; }
+  .card .meta { display: flex; gap: 14px; margin-top: 8px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .panel { border-top: 1px solid var(--line); padding-top: 14px; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 9px; border-radius: 999px; border: 1px solid var(--line);
+    background: #fbfcfe; cursor: pointer; font-size: 12px; user-select: none;
+  }
+  .toggle:hover { background: #f1f5fa; }
+  .toggle input { accent-color: var(--accent); margin: 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+  .tval { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .chart { width: 100%; height: 520px; }
+  .chart.tall { height: 590px; }
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .side { border-right: 1px solid var(--line); padding-right: 16px; max-height: 590px; overflow: auto; }
+  .group-title { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 1px; margin: 10px 0 7px; }
+  .group-title:first-child { margin-top: 0; }
+  .side .toggle { display: flex; width: 100%; border-radius: 8px; margin-bottom: 6px; justify-content: flex-start; }
+  .side .tname { flex: 1; }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  button {
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+  }
+  button:hover { background: #f1f5fa; }
+  button.active { background: #e8f0f7; border-color: #b9cfe0; color: #1d4f73; }
+  .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: #f8fafc; }
+  .tabs button { border: 0; background: transparent; }
+  .tabs button.active { background: #fff; box-shadow: 0 1px 4px rgba(31,41,55,.10); color: #1d4f73; }
+  .checkline { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; margin-left: auto; }
+  .checkline input { accent-color: var(--accent); }
+  footer { color: var(--muted); font-size: 12px; line-height: 1.7; }
+  @media (max-width: 980px) {
+    .cards { grid-template-columns: 1fr; }
+    .layout { grid-template-columns: 1fr; }
+    .side { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 10px; max-height: none; display: flex; flex-wrap: wrap; gap: 6px 10px; }
+    .side .group-title { width: 100%; margin: 6px 0 2px; }
+    .side .toggle { width: auto; margin-bottom: 0; }
+    .chart, .chart.tall { height: 480px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>中国商品指数看板</h1>
+    <div class="sub">持仓加权平均价格 · 持仓市值加权 · 基点 1000 ｜ 勾选左侧/上方指数可打开或关闭</div>
+  </header>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>大指数</h2>
+      <div class="hint">消费指数 / 工业指数（按持仓市值加权）</div>
+    </div>
+    <div class="cards" id="big-cards"></div>
+    <div class="panel">
+      <div class="toggles" id="big-toggles"></div>
+      <div id="big-chart" class="chart"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>比值曲线</h2>
+      <div class="hint">工业 ÷ 消费，以及消费 ÷ 工业</div>
+    </div>
+    <div class="cards" id="ratio-cards"></div>
+    <div class="panel">
+      <div class="toggles" id="ratio-toggles"></div>
+      <div id="ratio-chart" class="chart tall"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>小指数</h2>
+      <div class="tabs" id="period-tabs">
+        <button data-period="contract" class="active">2020 逐合约</button>
+        <button data-period="proxy">2005 长历史</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button data-filter="all">全部</button>
+      <button data-filter="consumption">仅消费</button>
+      <button data-filter="industrial">仅工业</button>
+      <button data-filter="none">全不选</button>
+      <label class="checkline"><input type="checkbox" id="log-toggle"> 对数轴</label>
+    </div>
+    <div class="layout">
+      <aside class="side" id="small-toggles"></aside>
+      <div id="small-chart" class="chart tall"></div>
+    </div>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script src="plotly.min.js"></script>
+<script src="data.js"></script>
+<script>
+const D = window.APP_DATA;
+const state = {
+  period: "contract",
+  bigVisible: new Set(D.big.filter(s => s.visible).map(s => s.key)),
+  ratioVisible: new Set(D.ratio.filter(s => s.visible).map(s => s.key)),
+  hs300Visible: true,
+  smallVisible: {
+    contract: new Set(D.contract.filter(s => s.visible).map(s => s.key)),
+    proxy: new Set(D.proxy.filter(s => s.visible).map(s => s.key))
+  },
+  log: false
+};
+
+const fmtNum = v => (v === null || v === undefined) ? "—" : Number(v).toFixed(1);
+const fmtRatio = v => (v === null || v === undefined) ? "—" : Number(v).toFixed(3);
+const fmtPct = v => (v === null || v === undefined) ? "—" : (v > 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
+const pctClass = v => (v === null || v === undefined) ? "" : (v >= 0 ? "up" : "down");
+
+function byKey(list, key) { return list.find(s => s.key === key); }
+
+function bigToggle(s) {
+  const el = document.createElement("label");
+  el.className = "toggle";
+  el.innerHTML =
+    `<input type="checkbox" ${state.bigVisible.has(s.key) ? "checked" : ""}>` +
+    `<span class="dot" style="background:${s.color}"></span>` +
+    `<span class="tname">${s.name}</span>` +
+    `<span class="tval">${fmtNum(s.latest)}</span>`;
+  el.querySelector("input").addEventListener("change", e => {
+    if (e.target.checked) state.bigVisible.add(s.key);
+    else state.bigVisible.delete(s.key);
+    renderBigChart();
+  });
+  return el;
+}
+
+function smallToggle(s) {
+  const el = document.createElement("label");
+  el.className = "toggle";
+  const checked = state.smallVisible[state.period].has(s.key);
+  el.innerHTML =
+    `<input type="checkbox" ${checked ? "checked" : ""}>` +
+    `<span class="dot" style="background:${s.color}"></span>` +
+    `<span class="tname">${s.name}</span>` +
+    `<span class="tval">${fmtNum(s.latest)}</span>`;
+  el.querySelector("input").addEventListener("change", e => {
+    if (e.target.checked) state.smallVisible[state.period].add(s.key);
+    else state.smallVisible[state.period].delete(s.key);
+    renderSmallChart();
+  });
+  return el;
+}
+
+function renderBigCards() {
+  const keys = ["consumption_price", "industrial_all_price"];
+  const box = document.getElementById("big-cards");
+  box.innerHTML = "";
+  keys.forEach(key => {
+    const s = byKey(D.big, key);
+    if (!s) return;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.borderLeftColor = s.color;
+    card.innerHTML =
+      `<div class="label">${s.name}</div>` +
+      `<div class="value">${fmtNum(s.latest)}</div>` +
+      `<div class="meta">` +
+      `<span>日变动 <b class="${pctClass(s.chg1d)}">${fmtPct(s.chg1d)}</b></span>` +
+      `<span>近一年 <b class="${pctClass(s.chg1y)}">${fmtPct(s.chg1y)}</b></span>` +
+      `<span>${s.latestDate}</span>` +
+      `</div>`;
+    box.appendChild(card);
+  });
+}
+
+function renderBigToggles() {
+  const box = document.getElementById("big-toggles");
+  box.innerHTML = "";
+  D.big.forEach(s => box.appendChild(bigToggle(s)));
+}
+
+function renderBigChart() {
+  const traces = D.big.filter(s => state.bigVisible.has(s.key)).map(s => ({
+    x: s.x, y: s.y, type: "scatter", mode: "lines", name: s.name,
+    line: { color: s.color, width: 2, dash: s.dash },
+    hovertemplate: `%{x}<br>${s.name}: %{y:.1f}<extra></extra>`
+  }));
+  const layout = {
+    margin: { l: 54, r: 18, t: 12, b: 36 },
+    hovermode: "x unified",
+    showlegend: false,
+    paper_bgcolor: "#ffffff",
+    plot_bgcolor: "#ffffff",
+    font: { family: "Microsoft YaHei, PingFang SC, Arial", size: 12, color: "#374151" },
+    xaxis: { showgrid: false, linecolor: "#dfe6ee", tickfont: { size: 11 } },
+    yaxis: { title: "指数（起点=1000）", gridcolor: "#e8edf3", zeroline: false, tickfont: { size: 11 } },
+    shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 1000, y1: 1000, line: { color: "#9aa4b2", dash: "dot", width: 1 } }]
+  };
+  Plotly.react("big-chart", traces, layout, { responsive: true, displaylogo: false });
+}
+
+function ratioToggle(s) {
+  const el = document.createElement("label");
+  el.className = "toggle";
+  el.innerHTML =
+    `<input type="checkbox" ${state.ratioVisible.has(s.key) ? "checked" : ""}>` +
+    `<span class="dot" style="background:${s.color}"></span>` +
+    `<span class="tname">${s.name}</span>` +
+    `<span class="tval">${fmtRatio(s.latest)}</span>`;
+  el.querySelector("input").addEventListener("change", e => {
+    if (e.target.checked) state.ratioVisible.add(s.key);
+    else state.ratioVisible.delete(s.key);
+    renderRatioChart();
+  });
+  return el;
+}
+
+function renderRatioCards() {
+  const box = document.getElementById("ratio-cards");
+  box.innerHTML = "";
+  D.ratio.filter(s => s.key === "ratio_main" || s.key === "ratio_inverse_main").forEach(s => {
+    const abs1d = s.y.length > 1 ? s.y[s.y.length - 1] - s.y[s.y.length - 2] : null;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.borderLeftColor = s.color;
+    card.innerHTML =
+      `<div class="label">${s.name}</div>` +
+      `<div class="value">${fmtRatio(s.latest)}</div>` +
+      `<div class="meta">` +
+      `<span>日变动 <b class="${pctClass(abs1d)}">${abs1d === null ? "—" : (abs1d >= 0 ? "+" : "") + abs1d.toFixed(3)}</b></span>` +
+      `<span>近一年 <b class="${pctClass(s.chg1y)}">${fmtPct(s.chg1y)}</b></span>` +
+      `<span>${s.latestDate}</span>` +
+      `</div>`;
+    box.appendChild(card);
+  });
+}
+
+function renderRatioToggles() {
+  const box = document.getElementById("ratio-toggles");
+  box.innerHTML = "";
+  D.ratio.forEach(s => box.appendChild(ratioToggle(s)));
+  const s = D.hs300;
+  const el = document.createElement("label");
+  el.className = "toggle";
+  el.innerHTML =
+    `<input type="checkbox" ${state.hs300Visible ? "checked" : ""}>` +
+    `<span class="dot" style="background:${s.color}"></span>` +
+    `<span class="tname">沪深300</span>` +
+    `<span class="tval">${fmtNum(s.latest)}</span>`;
+  el.querySelector("input").addEventListener("change", e => {
+    state.hs300Visible = e.target.checked;
+    renderRatioChart();
+  });
+  box.appendChild(el);
+}
+
+function renderRatioChart() {
+  const data = D.ratio.filter(s => state.ratioVisible.has(s.key)).map(s => ({
+    x: s.x, y: s.y, type: "scatter", mode: "lines", name: s.name,
+    xaxis: "x", yaxis: "y",
+    line: { color: s.color, width: 2, dash: s.dash },
+    hovertemplate: `%{x}<br>${s.name}: %{y:.3f}<extra></extra>`
+  }));
+  if (state.hs300Visible) {
+    data.push({
+      x: D.hs300.x, y: D.hs300.y, type: "scatter", mode: "lines", name: "沪深300",
+      xaxis: "x2", yaxis: "y2",
+      line: { color: D.hs300.color, width: 1.6 },
+      hovertemplate: `%{x}<br>沪深300: %{y:.1f}<extra></extra>`
+    });
+  }
+  const proxyOn = D.ratio.some(s => s.key.includes("proxy") && state.ratioVisible.has(s.key));
+  const start = proxyOn ? D.hs300.x[0] : D.ratio.find(s => s.key === "ratio_main").x[0];
+  const end = D.hs300.x[D.hs300.x.length - 1];
+  const showHs = state.hs300Visible;
+  const layout = {
+    height: 590,
+    margin: { l: 58, r: 18, t: 18, b: 34 },
+    hovermode: "x unified",
+    showlegend: false,
+    paper_bgcolor: "#ffffff",
+    plot_bgcolor: "#ffffff",
+    font: { family: "Microsoft YaHei, PingFang SC, Arial", size: 12, color: "#374151" },
+    xaxis: {
+      domain: [0, 1], anchor: "y", matches: "x2", showgrid: false,
+      linecolor: "#dfe6ee", tickfont: { size: 11 }, range: [start, end]
+    },
+    yaxis: {
+      domain: showHs ? [0.42, 1] : [0, 1], anchor: "x",
+      title: "比值", gridcolor: "#e8edf3", zeroline: false, tickfont: { size: 11 }
+    },
+    xaxis2: {
+      domain: [0, 1], anchor: "y2", showgrid: false,
+      linecolor: "#dfe6ee", tickfont: { size: 11 }, range: [start, end],
+      rangeslider: { visible: true, thickness: 0.05, bgcolor: "#f7f9fc" },
+      visible: showHs
+    },
+    yaxis2: {
+      domain: [0, 0.36], anchor: "x2", title: "沪深300",
+      gridcolor: "#e8edf3", zeroline: false, tickfont: { size: 11 },
+      visible: showHs
+    },
+    shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 1, y1: 1, line: { color: "#9aa4b2", dash: "dot", width: 1 } }]
+  };
+  Plotly.react("ratio-chart", data, layout, { responsive: true, displaylogo: false });
+}
+
+function renderSmallToggles() {
+  const list = D[state.period];
+  const box = document.getElementById("small-toggles");
+  box.innerHTML = "";
+  const groups = [["consumption", "消费"], ["industrial", "工业"]];
+  groups.forEach(([g, label]) => {
+    const title = document.createElement("div");
+    title.className = "group-title";
+    title.textContent = label;
+    box.appendChild(title);
+    list.filter(s => s.group === g).forEach(s => box.appendChild(smallToggle(s)));
+  });
+}
+
+function renderSmallChart() {
+  const list = D[state.period];
+  const traces = list.filter(s => state.smallVisible[state.period].has(s.key)).map(s => ({
+    x: s.x, y: s.y, type: "scatter", mode: "lines", name: s.name,
+    line: { color: s.color, width: 1.7 },
+    hovertemplate: `%{x}<br>${s.name}: %{y:.1f}<extra></extra>`
+  }));
+  const layout = {
+    margin: { l: 54, r: 18, t: 12, b: 34 },
+    hovermode: "x unified",
+    showlegend: false,
+    paper_bgcolor: "#ffffff",
+    plot_bgcolor: "#ffffff",
+    font: { family: "Microsoft YaHei, PingFang SC, Arial", size: 12, color: "#374151" },
+    xaxis: {
+      showgrid: false, linecolor: "#dfe6ee", tickfont: { size: 11 },
+      rangeslider: { visible: true, thickness: 0.07, bgcolor: "#f7f9fc" }
+    },
+    yaxis: {
+      title: state.log ? "指数（对数轴，起点=1000）" : "指数（起点=1000）",
+      type: state.log ? "log" : "linear",
+      gridcolor: "#e8edf3", zeroline: false, tickfont: { size: 11 }
+    },
+    shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 1000, y1: 1000, line: { color: "#9aa4b2", dash: "dot", width: 1 } }]
+  };
+  Plotly.react("small-chart", traces, layout, { responsive: true, displaylogo: false });
+}
+
+function setFilter(filter) {
+  const list = D[state.period];
+  if (filter === "all") state.smallVisible[state.period] = new Set(list.map(s => s.key));
+  else if (filter === "none") state.smallVisible[state.period] = new Set();
+  else state.smallVisible[state.period] = new Set(list.filter(s => s.group === filter).map(s => s.key));
+  renderSmallToggles();
+  renderSmallChart();
+}
+
+function switchPeriod(period) {
+  state.period = period;
+  document.querySelectorAll("#period-tabs button").forEach(b => b.classList.toggle("active", b.dataset.period === period));
+  renderSmallToggles();
+  renderSmallChart();
+}
+
+document.querySelectorAll("#period-tabs button").forEach(b => {
+  b.addEventListener("click", () => switchPeriod(b.dataset.period));
+});
+document.querySelectorAll("[data-filter]").forEach(b => {
+  b.addEventListener("click", () => setFilter(b.dataset.filter));
+});
+document.getElementById("log-toggle").addEventListener("change", e => {
+  state.log = e.target.checked;
+  renderSmallChart();
+});
+
+function setFooter() {
+  const dates = [...D.big, ...D.contract, ...D.proxy].map(s => s.latestDate).filter(Boolean).sort();
+  const last = dates.length ? dates[dates.length - 1] : "";
+  document.getElementById("footer").innerHTML =
+    `数据截至 ${last} ｜ 大指数按持仓市值加权；小指数为各品种持仓加权平均价格再按市值合成。<br>` +
+    `说明：2020 年起为逐合约口径；2005 年起为新浪主力连续代理口径。花生用 PK 替代，橡胶暂只用 RU，铂/钯为广期所。`;
+}
+
+renderBigCards();
+renderBigToggles();
+renderBigChart();
+renderRatioCards();
+renderRatioToggles();
+renderRatioChart();
+renderSmallToggles();
+renderSmallChart();
+setFooter();
+</script>
+</body>
+</html>
