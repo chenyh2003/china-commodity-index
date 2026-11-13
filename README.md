@@ -164,7 +164,9 @@ I(指数,t) = Σ w(小类,t-1) × I(小类,t)
 
 ## 6. 网站
 
-入口：`site/index.html`，也可以双击根目录的 `打开网站.bat`。
+在线版：https://chenyh2003.github.io/china-commodity-index/
+
+本地入口：`site/index.html`，也可以双击根目录的 `打开网站.bat`。
 
 功能：
 
