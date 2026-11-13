@@ -271,7 +271,7 @@ function renderRatioCards() {
   const box = document.getElementById("ratio-cards");
   box.innerHTML = "";
   D.ratio.filter(s => s.key === "ratio_main" || s.key === "ratio_inverse_main").forEach(s => {
-    const abs1d = s.y.length > 1 ? s.y[s.y.length - 1] - s.y[s.y.length - 2] : null;
+    const abs1d = s.chg1dAbs;
     const card = document.createElement("div");
     card.className = "card";
     card.style.borderLeftColor = s.color;
